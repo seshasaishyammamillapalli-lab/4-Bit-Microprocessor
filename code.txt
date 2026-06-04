@@ -1,0 +1,152 @@
+module four_bit_pc(A,B,CLK,intsr,pc_outputA,pc_outputB,address,CF,ZF,halt_flag,ip,sp,out_stack);
+input [3:0]A;
+input [3:0]B;
+input CLK;
+input [3:0]intsr;
+reg Cout;
+reg [3:0]memory[15:0];
+output reg [3:0]ip=0;
+output reg [3:0]sp=0; 
+output reg halt_flag;
+output reg[3:0]pc_outputA;
+output reg[3:0]pc_outputB;
+output reg[3:0]address=0;
+output reg[3:0]out_stack=0;
+output reg CF;
+output reg ZF;
+reg[3:0]stack[15:0];
+
+ 
+always @(posedge CLK)
+begin
+     CF=0;
+     ZF=0;
+     halt_flag=0;
+     memory[0] = 4'b1100;
+     memory[1] = 4'b1101;
+     memory[2] = 4'b1001;
+     memory[3] = 4'b1111;
+     memory[4] = 4'b0100;
+     memory[5] = 4'b0110;
+     memory[6] = 4'b1110;
+     memory[7] = 4'b0011;
+     memory[8] = 4'b1010;
+     memory[9] = 4'b0010;
+     memory[10] = 4'b0101;
+     memory[11] = 4'b0001;
+     memory[12] = 4'b0000;
+     memory[13] = 4'b0111;
+     memory[14] = 4'b1011;
+     memory[15] = 4'b1000;  
+     address=address+1;  
+    
+	 if (intsr==0)begin
+		 {CF,pc_outputA}=A+B;  //ADD A,B
+		 if (pc_outputA==0)
+			 ZF=1;
+		 end
+			 
+	 else if (intsr==1)begin
+		 {CF,pc_outputA}=A-B;       //SUB  A,B
+		 if (pc_outputA==0)
+			 ZF=1;
+		 end
+	 else if (intsr==2)
+	     begin
+	     pc_outputA=B;              //XCHG  B,A
+	     pc_outputB=A;
+	     end
+	 else if (intsr==3)
+	     begin
+	     pc_outputB={B[2:0],B[3]};  //RCL  B
+	     if (pc_outputB==0)
+	     ZF=1;
+	     end
+	 else if (intsr==4)
+		 begin
+         CF=A[0];                  //SHR A
+         pc_outputA[0]=A[1];
+         pc_outputA[1]=A[2];
+         pc_outputA[2]=A[3];
+         pc_outputA[3]=0;
+		 end
+		 
+     else if (intsr==5)
+         begin
+		 pc_outputA=memory[address]; //MOV A,[address]
+         if(memory[address]==0)
+         ZF = 1;
+         end
+     else if (intsr==6)
+         begin
+		 pc_outputA=A^memory[address]; //XOR A,[ADDRESS]
+         if(pc_outputA==0)
+         ZF = 1;
+         end
+		 
+	 else if (intsr==7)
+		 begin
+		 pc_outputA=A&B;       //AND A,B
+		 if (pc_outputA==0)
+			 ZF=1;
+		 end
+	 else if (intsr==8)
+		 begin
+		 pc_outputB=B|memory[address];       //OR B,[address]
+		 if (pc_outputB==0)
+			 ZF=1;
+		 end 
+	 
+	 else if (intsr==9)
+		 begin
+         pc_outputA=A;     //out A
+         if (pc_outputA==0)
+			 ZF=1;
+		 end
+	 else if (intsr==10)
+      begin	 
+		 if(ZF==1)       //JZ  ADDRESS
+         ip=address;
+      end
+     else if(intsr==11)
+		 begin
+		 stack[sp]=B;    //push B
+		 out_stack=stack[sp];   
+		 sp=sp+1;
+		 if (B==0)
+		 begin
+		 ZF=1;
+		 end  
+		 end
+	else if(intsr==12)
+		 begin
+		 sp=sp-1;
+		 pc_outputB=stack[sp];   //pop B
+		 out_stack=0;      
+		 if (pc_outputB==0)
+		 begin
+		 ZF=1;
+		 end   
+		 end
+	else if(intsr==13)
+	     begin
+	     stack[sp]=ip; //call address
+	     //out_stack=stack[sp];    
+	     ip=address;
+	     sp=sp+1;
+	     end
+	else if(intsr==14)
+         begin
+         sp=sp-1;
+         ip=stack[sp];   //return
+         end
+	
+	else if (intsr==15)
+	     begin
+	     halt_flag=1;   //HLT
+	     end
+	     
+
+
+end
+endmodule

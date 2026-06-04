@@ -1,0 +1,141 @@
+
+// *************4 Bit Computer Using Verilog*******************//
+
+module My_computer4bit(A,B,pc_instr,mypc_clock,mypc_outA,mypc_outB,stop_flag,ADDRESS,stack_output,IP,SP,zf,cf);
+	input [3:0]A; //data input A of size 4 bit
+	input [3:0]B; // data input B of size 4 bit
+	input [3:0]pc_instr; // 4bits are for instruction to be executed
+	input mypc_clock; // clock pulse to control the overall functions of the pc
+	
+	reg [3:0]mypc_ram[15:0]; // RAM of size 16*4;16 rows each with bit depth of 4
+	reg[3:0]mypcMEM_STACK[15:0]; // stack memory of size 16*4
+	
+	output reg[3:0]mypc_outA; //variable to show output states of A
+	output reg[3:0]mypc_outB; // variable to show output states of B
+	
+	output reg stop_flag; // flog used to indicate the HLT instruction
+	output reg[3:0]ADDRESS=0; 
+	output reg[3:0]stack_output=0; // variable to show the state of stack
+	
+	output reg [3:0]IP =0; //instruction pointer initialized to zero.
+	output reg [3:0]SP =15; // stack pointer initialized to the last location 
+	
+	output reg zf; // zero flag
+	output reg cf; // carry flag
+
+	integer k;
+	parameter n = 16;
+
+always @(posedge mypc_clock) // instruction execution block
+begin
+
+	stop_flag =0; 
+	zf = 0;
+	cf  = 0;
+
+	for(k=0;k<=n-1;k = k+1)
+	begin
+		mypc_ram[k] =k; // assigning values of addresses to the memory block.
+	end	
+			
+	ADDRESS = ADDRESS +1;  
+    
+    // instruction by instruction execution
+    
+	 case(pc_instr)
+		0:begin
+			{cf,mypc_outA}=A+B; //Add instruction
+			if (mypc_outA==0)
+				zf=1;
+		  end
+			 
+		1:begin
+			{cf,mypc_outA}=A-B; // subtract instruction
+			if (mypc_outA==0)
+				zf=1;
+	      end
+		2:begin   // XCHG instruction here we have done it in this fashion to see the output
+	               // actually it should be temp=A; A=B;B=temp;      
+			mypc_outA=B;      
+			mypc_outB=A;
+	      end
+		3:begin
+			mypc_outB={B[2:0],B[3]};//RCL  B; rotate carry left B
+			cf = B[3];  
+			if (mypc_outB==0)
+				zf=1;
+	      end
+		4:begin
+			cf=A[0];                  //SHR A(shift right A)
+			mypc_outA[0]=A[1];
+			mypc_outA[1]=A[2];
+			mypc_outA[2]=A[3];
+			mypc_outA[3]=0;
+		  end
+		 
+        5:begin
+			mypc_outA=mypc_ram[ADDRESS]; //MOV A,[ADDRESS]
+			if(mypc_ram[ADDRESS]==0)
+				zf = 1;
+		  end
+		6:begin
+			mypc_outA=A^mypc_ram[ADDRESS]; //XOR A,[ADDRESS]
+			if(mypc_outA==0)
+				zf = 1;
+          end
+		 
+		7:begin
+			mypc_outA=A&B;       //AND A,B
+			if (mypc_outA==0)
+				zf=1;
+		  end
+		8:begin
+			mypc_outB=B|mypc_ram[ADDRESS];       //OR B,[ADDRESS]
+			if (mypc_outB==0)
+				zf=1;
+		  end 
+	 
+		9:begin
+			mypc_outA = A;     //out A
+			if (mypc_outA==0)
+				zf=1;
+		  end
+		10:begin	 
+			if(zf==1)       //JZ  ADDRESS
+				IP= ADDRESS;
+		   end
+		11:begin
+			mypcMEM_STACK[SP]=B;    //push B
+			stack_output=mypcMEM_STACK[SP];   
+			SP=SP-1;
+			if (B==0)
+				begin
+					zf=1;
+				end  
+			end
+		12:begin
+			SP=SP+1;
+			mypc_outB=mypcMEM_STACK[SP];   //pop B
+			stack_output=0;      
+			if (mypc_outB==0)
+				begin
+					zf=1;
+				end   
+		   end
+		13:begin
+			mypcMEM_STACK[SP]= IP; //call address   
+			IP = ADDRESS;
+			SP = SP-1;
+	       end
+		14:begin    
+			SP=SP+1;
+			IP = mypcMEM_STACK[SP]; // return   
+           end
+	
+		15:begin
+			stop_flag=1;   //HLT
+		   end
+	     
+	 endcase
+end
+endmodule
